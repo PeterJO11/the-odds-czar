@@ -16,7 +16,8 @@ import {
   createTeam as createTeamMutation,
   deleteTeam as deleteTeamMutation,
 } from "./graphql/mutations";
-import { Amplify, Storage } from "aws-amplify";
+import { Amplify } from "aws-amplify";
+import { uploadData, getUrl, remove } from 'aws-amplify/storage';
 import { generateClient } from "aws-amplify/api";
 import awsconfig from './aws-exports';
 
@@ -37,7 +38,7 @@ const App = ({ signOut }) => {
     await Promise.all(
       teamsFromAPI.map(async (team) => {
         if (team.logoImage) {
-          const url = await Storage.get(team.name);
+          const url = await getUrl({key: team.id});
           team.logoImage = url;
         }
         return team;
@@ -49,14 +50,19 @@ const App = ({ signOut }) => {
   async function createTeam(event) {
     event.preventDefault();
     const form = new FormData(event.target);
+    const logoImage = form.get("logoImage");
     const data = {
       name: form.get("name"),
       // description: form.get("description"),
+      logoImage: logoImage.name,
     };
-    await client.graphql({
+    
+    const result = await client.graphql({
       query: createTeamMutation,
       variables: { input: data },
     });
+    if (!!data.logoImage) await uploadData({key:result.data.createTeam.id, data:logoImage}).result;
+
     fetchTeams();
     event.target.reset();
   }
@@ -64,6 +70,7 @@ const App = ({ signOut }) => {
   async function deleteTeam({ id }) {
     const newTeams = teams.filter((team) => team.id !== id);
     setTeams(newTeams);
+    await remove({key:id});
     await client.graphql({
       query: deleteTeamMutation,
       variables: { input: { id } },
@@ -91,6 +98,12 @@ const App = ({ signOut }) => {
             variation="quiet"
             required
           /> */}
+          <View
+            name="logoImage"
+            as="input"
+            type="file"
+            style={{ alignSelf: "end" }}
+          />
           <Button type="submit" variation="primary">
             Create Team
           </Button>
@@ -109,6 +122,13 @@ const App = ({ signOut }) => {
               {team.name}
             </Text>
             {/* <Text as="span">{team.id + team.description}</Text> */}
+            {team.logoImage && (
+              <Image
+                src={team.logoImage.url}
+                alt={`visual aid for ${team.name}`}
+                style={{ width: 40 }}
+              />
+            )}
             <Button variation="link" onClick={() => deleteTeam(team)}>
               Delete team
             </Button>
