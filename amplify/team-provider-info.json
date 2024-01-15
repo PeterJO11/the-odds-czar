@@ -14,6 +14,12 @@
     "categories": {
       "auth": {
         "theoddsczar194f2203": {}
+      },
+      "api": {
+        "theoddsczar": {}
+      },
+      "storage": {
+        "imagestore": {}
       }
     }
   }
